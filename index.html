@@ -8,7 +8,10 @@
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
-body{font-family:-apple-system,BlinkMacSystemFont,'Helvetica Neue',sans-serif;background:#f5f0eb;color:#2c2c2c;font-size:14px;padding-bottom:24px}
+body{font-family:-apple-system,BlinkMacSystemFont,'Helvetica Neue',sans-serif;background:#f5f0eb;color:#2c2c2c;font-size:14px;
+  /* 全屏布局，禁止页面滚动 */
+  height:100vh;height:100dvh;overflow:hidden;display:flex;flex-direction:column;
+  -webkit-text-size-adjust:100%}
 
 /* ── Header ── */
 .hdr{background:linear-gradient(135deg,#b5191a 0%,#e84042 50%,#c0392b 100%);color:#fff;padding:16px 16px 12px;text-align:center}
@@ -49,17 +52,16 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Helvetica Neue',sans-serif;ba
 .leaflet-container{font-size:12px}
 
 /* ══ SPLIT LAYOUT ══ */
-body{height:100dvh;overflow:hidden;display:flex;flex-direction:column}
 #top-bar{flex-shrink:0}
-#content{flex:1;overflow:hidden;position:relative;display:flex;flex-direction:column}
-.day{display:none;flex:1;overflow:hidden}
+#content{flex:1;min-height:0;overflow:hidden;display:flex;flex-direction:column}
+.day{display:none;flex:1;min-height:0;overflow:hidden}
 .day.on{display:flex}
 /* overview & edit = vertical scroll */
 #d0.on{flex-direction:column;overflow-y:auto}
-#edit-page.on{overflow-y:auto}
 /* day pages = left/right split */
-.day-map-side{width:42%;flex-shrink:0;position:relative;background:#e8e0d8}
-.day-map-side .map-canvas{position:absolute;inset:0}
+.day-map-side{width:42%;flex-shrink:0;display:flex;flex-direction:column;position:relative;background:#e8e0d8;min-height:0}
+/* 地图画布用 flex:1 填满，不用 position:absolute（移动端兼容性更好）*/
+.day-map-side .map-canvas{flex:1;min-height:0;width:100%}
 .map-day-badge{position:absolute;bottom:10px;left:8px;right:8px;background:rgba(255,255,255,.88);backdrop-filter:blur(4px);border-radius:10px;padding:7px 10px;z-index:400;box-shadow:0 2px 8px rgba(0,0,0,.15)}
 .map-day-badge .mdb-date{font-size:10px;color:#c0392b;font-weight:700;letter-spacing:.5px}
 .map-day-badge .mdb-title{font-size:13px;font-weight:800;color:#1a1a1a;line-height:1.3}
@@ -586,7 +588,10 @@ function initMap(dayIdx){
   if(maps[id]||!document.getElementById(id)) return;
   const cfg=data[dayIdx-1].map;
   const m=L.map(id,{zoomControl:true,attributionControl:false}).setView(cfg.c,cfg.z);
-  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:18}).addTo(m);
+  // CartoDB Voyager — 国内可访问，无需API Key
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png',{
+    subdomains:'abcd', maxZoom:19, crossOrigin:true
+  }).addTo(m);
   const pts=cfg.pts||[];
   if(pts.length>1) L.polyline(pts.map(p=>[p.lat,p.lng]),{color:'#c0392b',weight:2.5,opacity:.6,dashArray:'6,4'}).addTo(m);
   pts.forEach(p=>{
@@ -594,7 +599,10 @@ function initMap(dayIdx){
     L.marker([p.lat,p.lng],{icon:ic}).bindPopup(`<b>${p.lb}</b>`,{maxWidth:150}).addTo(m);
   });
   maps[id]=m;
-  setTimeout(()=>m.invalidateSize(),200);
+  // 多次调用确保手机端渲染完成后地图正确铺满
+  setTimeout(()=>m.invalidateSize(),100);
+  setTimeout(()=>m.invalidateSize(),500);
+  setTimeout(()=>m.invalidateSize(),1200);
 }
 
 // ════════════════════════════════════════════════════════
@@ -610,7 +618,7 @@ function sw(i, skipPinCheck){
   document.querySelectorAll('.day').forEach((d,idx)=>d.classList.toggle('on',idx===i));
   document.getElementById('edit-page').style.display      = (i===10) ? 'block' : 'none';
   document.getElementById('checklist-page').style.display = (i===9)  ? 'block' : 'none';
-  if(i>0&&i<9) setTimeout(()=>initMap(i), 50);
+  if(i>0&&i<9) setTimeout(()=>initMap(i), 80);
   if(i===10) buildEditPage();
   if(i===9)  renderChecklist();
 }
